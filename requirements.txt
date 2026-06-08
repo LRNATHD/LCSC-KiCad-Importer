@@ -1,0 +1,10 @@
+JLC2KiCadLib
+keyboard
+uiautomation
+pyperclip
+requests
+pystray
+Pillow
+winshell
+pywin32
+pyinstaller
