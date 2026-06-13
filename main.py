@@ -72,6 +72,13 @@ def on_trigger():
             modified_symbol_block
         )
         
+        # Extract the exact (at X Y Z) coordinate from the library symbol's Reference property to prevent overlap
+        ref_at_match = re.search(r'\(property\s+"Reference"[^)]*\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)', modified_symbol_block)
+        if ref_at_match:
+            ref_at = f"(at {ref_at_match.group(1)} {ref_at_match.group(2)} {ref_at_match.group(3)})"
+        else:
+            ref_at = "(at 0 5.08 0)"
+        
         # This matches the KiCad 10 schematic clipboard format perfectly!
         clipboard_text = f"""(lib_symbols
   {modified_symbol_block}
@@ -88,6 +95,10 @@ def on_trigger():
   (dnp no)
   (fields_autoplaced yes)
   (uuid "{str(uuid.uuid4())}")
+  (property "Reference" "{reference_prefix}"
+    {ref_at}
+    (effects (font (size 1.27 1.27)))
+  )
 )"""
         pyperclip.copy(clipboard_text)
         
