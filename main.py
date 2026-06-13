@@ -65,6 +65,13 @@ def on_trigger():
         # Extract the designator prefix determined from LCSC product categories (highly robust)
         reference_prefix = attributes.get('_designator', 'U') if attributes else 'U'
         
+        # Override the Reference property in the symbol definition so it natively uses the correct prefix
+        modified_symbol_block = re.sub(
+            r'\(property\s+"Reference"\s+"[^"]+"',
+            f'(property "Reference" "{reference_prefix}"',
+            modified_symbol_block
+        )
+        
         # This matches the KiCad 10 schematic clipboard format perfectly!
         clipboard_text = f"""(lib_symbols
   {modified_symbol_block}
@@ -81,10 +88,6 @@ def on_trigger():
   (dnp no)
   (fields_autoplaced yes)
   (uuid "{str(uuid.uuid4())}")
-  (property "Reference" "{reference_prefix}"
-    (at 0 0 0)
-    (effects (font (size 1.27 1.27)))
-  )
 )"""
         pyperclip.copy(clipboard_text)
         
