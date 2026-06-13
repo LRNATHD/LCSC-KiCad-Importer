@@ -62,6 +62,10 @@ def on_trigger():
             symbol_block.strip()
         )
         
+        # Extract the designator prefix (e.g., "R", "C", "U") from the symbol definition
+        ref_match = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', modified_symbol_block)
+        reference_prefix = ref_match.group(1) if ref_match else "U"
+        
         # This matches the KiCad 10 schematic clipboard format perfectly!
         clipboard_text = f"""(lib_symbols
   {modified_symbol_block}
@@ -78,7 +82,7 @@ def on_trigger():
   (dnp no)
   (fields_autoplaced yes)
   (uuid "{str(uuid.uuid4())}")
-  (property "Reference" "U"
+  (property "Reference" "{reference_prefix}"
     (at 0 0 0)
     (effects (font (size 1.27 1.27)))
   )
