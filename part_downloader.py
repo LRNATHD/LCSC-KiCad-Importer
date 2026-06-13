@@ -56,6 +56,32 @@ def fetch_lcsc_attributes(part_number, tab_url=None):
         with urllib.request.urlopen(req, timeout=5) as response:
             html = response.read().decode('utf-8')
             attributes = parse_lcsc_html_attributes(html)
+            
+            import json
+            designator = "U"
+            match = re.search(r'"@type":"BreadcrumbList",.*?"itemListElement":(\[.*?\])', html)
+            if match:
+                try:
+                    breadcrumbs = json.loads(match.group(1))
+                    categories = [b.get('name', '') for b in breadcrumbs]
+                    text = " ".join(categories).lower()
+                    if 'resistor' in text: designator = 'R'
+                    elif 'capacitor' in text: designator = 'C'
+                    elif 'inductor' in text or 'coil' in text or 'transformer' in text: designator = 'L'
+                    elif 'diode' in text or 'rectifier' in text or 'tvs' in text or 'led' in text: designator = 'D'
+                    elif 'transistor' in text or 'mosfet' in text or 'bjt' in text: designator = 'Q'
+                    elif 'connector' in text or 'socket' in text or 'header' in text: designator = 'J'
+                    elif 'switch' in text or 'button' in text: designator = 'SW'
+                    elif 'relay' in text: designator = 'K'
+                    elif 'crystal' in text or 'oscillator' in text or 'resonator' in text: designator = 'Y'
+                    elif 'fuse' in text: designator = 'F'
+                    elif 'antenna' in text: designator = 'ANT'
+                    elif 'battery' in text: designator = 'BT'
+                except Exception:
+                    pass
+                    
+            attributes['_designator'] = designator
+            
             print(f"[+] Scraped attributes successfully: {attributes.keys()}")
             return attributes
     except Exception as e:

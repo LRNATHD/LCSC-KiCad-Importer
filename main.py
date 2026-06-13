@@ -62,9 +62,8 @@ def on_trigger():
             symbol_block.strip()
         )
         
-        # Extract the designator prefix (e.g., "R", "C", "U") from the symbol definition
-        ref_match = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', modified_symbol_block)
-        reference_prefix = ref_match.group(1) if ref_match else "U"
+        # Extract the designator prefix determined from LCSC product categories (highly robust)
+        reference_prefix = attributes.get('_designator', 'U') if attributes else 'U'
         
         # This matches the KiCad 10 schematic clipboard format perfectly!
         clipboard_text = f"""(lib_symbols
