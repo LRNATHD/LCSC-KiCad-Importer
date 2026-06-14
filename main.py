@@ -73,11 +73,30 @@ def on_trigger():
         )
         
         # Extract the exact (at X Y Z) coordinate from the library symbol's Reference property to prevent overlap
-        ref_at_match = re.search(r'\(property\s+"Reference"[^)]*\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)', modified_symbol_block)
-        if ref_at_match:
-            ref_at = f"(at {ref_at_match.group(1)} {ref_at_match.group(2)} {ref_at_match.group(3)})"
-        else:
-            ref_at = "(at 0 5.08 0)"
+        ref_at_match = re.search(r'\(property\s+"Reference".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)', modified_symbol_block, re.DOTALL)
+        ref_at = f"(at {ref_at_match.group(1)} {ref_at_match.group(2)} {ref_at_match.group(3)})" if ref_at_match else "(at 0 5.08 0)"
+        
+        # Extract Footprint property explicitly to ensure KiCad links the footprint upon paste
+        fp_match = re.search(r'\(property\s+"Footprint"\s+"([^"]+)".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)', modified_symbol_block, re.DOTALL)
+        fp_prop = ""
+        if fp_match:
+            fp_val = fp_match.group(1)
+            fp_at = f"(at {fp_match.group(2)} {fp_match.group(3)} {fp_match.group(4)})"
+            fp_prop = f"""  (property "Footprint" "{fp_val}"
+    {fp_at}
+    (effects (font (size 1.27 1.27) italic) hide)
+  )"""
+
+        # Extract Value property explicitly
+        val_match = re.search(r'\(property\s+"Value"\s+"([^"]+)".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)', modified_symbol_block, re.DOTALL)
+        val_prop = ""
+        if val_match:
+            val_val = val_match.group(1)
+            val_at = f"(at {val_match.group(2)} {val_match.group(3)} {val_match.group(4)})"
+            val_prop = f"""  (property "Value" "{val_val}"
+    {val_at}
+    (effects (font (size 1.27 1.27)))
+  )"""
         
         # This matches the KiCad 10 schematic clipboard format perfectly!
         clipboard_text = f"""(lib_symbols
@@ -99,6 +118,8 @@ def on_trigger():
     {ref_at}
     (effects (font (size 1.27 1.27)))
   )
+{val_prop}
+{fp_prop}
 )"""
         pyperclip.copy(clipboard_text)
         
