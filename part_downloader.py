@@ -265,6 +265,7 @@ def download_part(part_number, tab_url=None):
     attributes = fetch_lcsc_attributes(part_number, tab_url)
     
     # 2. Invoke JLC2KiCadLib to fetch EasyEDA files (footprints, 3D shapes, symbol)
+    old_argv = sys.argv
     sys.argv = [
         "JLC2KiCadLib",
         part_number,
