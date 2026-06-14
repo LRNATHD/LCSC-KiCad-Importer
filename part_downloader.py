@@ -265,13 +265,13 @@ def download_part(part_number, tab_url=None):
     attributes = fetch_lcsc_attributes(part_number, tab_url)
     
     # 2. Invoke JLC2KiCadLib to fetch EasyEDA files (footprints, 3D shapes, symbol)
-    old_argv = sys.argv
     sys.argv = [
         "JLC2KiCadLib",
         part_number,
         "-dir", LIBRARY_DIR,
         "-symbol_lib", SYMBOL_LIB,
         "-footprint_lib", FOOTPRINT_LIB,
+        "-model_dir", f"../{FOOTPRINT_LIB}.3dshapes",
         "--skip_existing"
     ]
     
@@ -288,6 +288,26 @@ def download_part(part_number, tab_url=None):
                 return False, None, None, None
                 
         print(f"[+] JLC2KiCadLib execution complete.")
+        
+        # Post-process: Automatically migrate footprints to the .pretty folder since KiCad requires it
+        import shutil
+        src_fp_dir = os.path.join(LIBRARY_DIR, FOOTPRINT_LIB)
+        dst_fp_dir = os.path.join(LIBRARY_DIR, f"{FOOTPRINT_LIB}.pretty")
+        if os.path.exists(src_fp_dir):
+            if not os.path.exists(dst_fp_dir):
+                os.makedirs(dst_fp_dir)
+            for item in os.listdir(src_fp_dir):
+                s = os.path.join(src_fp_dir, item)
+                d = os.path.join(dst_fp_dir, item)
+                if s.endswith('.kicad_mod'):
+                    shutil.move(s, d)
+            # Try to clean up the empty source directory
+            try:
+                os.rmdir(src_fp_dir)
+            except OSError:
+                pass
+    
+
         
         # 3. Locate the symbol in JLC2KiCadLib's output symbol library (Symbol/EasyEDA.kicad_sym)
         jlc_lib_path = os.path.join(LIBRARY_DIR, "Symbol", f"{SYMBOL_LIB}.kicad_sym")
