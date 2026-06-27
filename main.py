@@ -17,13 +17,16 @@ def on_trigger():
         return
         
     try:
+        from tray_icon import show_notification
         print("\n" + "="*50)
         print("[+] Hotkey triggered! Scanning background Chrome windows...")
         print("="*50)
+        show_notification("Scanning background Chrome tabs for parts...", "Importer Started")
         
         # 1. Read Chrome Active Tab Information from foreground OR background Chrome windows
         title, url = get_active_chrome_info()
         if not title and not url:
+            show_notification("No open Google Chrome windows detected.", "Error")
             print("[-] No open Google Chrome windows detected.")
             return
             
@@ -34,6 +37,7 @@ def on_trigger():
         # 2. Extract LCSC Part Number (Cxxxxx)
         part_number = extract_lcsc_part_number(title, url)
         if not part_number:
+            show_notification("Could not find an LCSC part number (Cxxxxx) in any Chrome windows/tabs.", "Error")
             print("[-] Could not find an LCSC part number (Cxxxxx) in any Chrome windows/tabs.")
             print("    Please open Chrome to an LCSC product details page and try again.")
             return
@@ -43,6 +47,7 @@ def on_trigger():
         # 3. Download and convert the part using JLC2KiCadLib (passing the active tab URL for rich scraping)
         success, symbol_name, symbol_block, attributes = download_part(part_number, url)
         if not success or not symbol_name or not symbol_block:
+            show_notification("Failed to download or convert the part.", "Error")
             print("[-] Failed to download, convert, or post-process the part.")
             return
             
@@ -129,8 +134,13 @@ def on_trigger():
         print(f"    1. Switch to KiCad Schematic Editor.")
         print(f"    2. Press 'Ctrl + V' to paste it instantly!")
         print("*"*60 + "\n")
+        show_notification(f"Downloaded {clean_name}!\nReady to paste into KiCad.", "Success")
             
     except Exception as e:
+        try:
+            from tray_icon import show_notification
+            show_notification(f"Unexpected error: {str(e)}", "Error")
+        except: pass
         print(f"[-] Unexpected error during trigger workflow: {e}")
     finally:
         trigger_lock.release()

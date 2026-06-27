@@ -55,7 +55,17 @@ def on_quit(icon, item):
     icon.stop()
     os._exit(0)
 
+global_icon = None
+
+def show_notification(message, title="LCSC Importer"):
+    if global_icon:
+        try:
+            global_icon.notify(message, title)
+        except Exception as e:
+            print(f"Notification error: {e}")
+
 def start_tray_icon():
+    global global_icon
     try:
         if getattr(sys, 'frozen', False):
             base_path = sys._MEIPASS
@@ -76,5 +86,5 @@ def start_tray_icon():
         pystray.MenuItem("Quit", on_quit)
     )
 
-    icon = pystray.Icon("lcsc_importer", image, "LCSC to KiCad Importer", menu)
-    icon.run()
+    global_icon = pystray.Icon("lcsc_importer", image, "LCSC to KiCad Importer", menu)
+    global_icon.run()
