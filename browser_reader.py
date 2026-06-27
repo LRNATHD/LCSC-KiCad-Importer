@@ -1,3 +1,21 @@
+import os
+import sys
+
+def _get_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+# Configure a persistent comtypes cache directory so the UIAutomation wrapper doesn't crash on startup
+cache_dir = os.path.join(_get_base_dir(), "comtypes_cache")
+try:
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+    import comtypes.client
+    comtypes.client.gen_dir = cache_dir
+except Exception as e:
+    pass
+
 import uiautomation as auto
 import re
 
