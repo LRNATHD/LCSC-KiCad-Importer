@@ -82,6 +82,28 @@ def fetch_lcsc_attributes(part_number, tab_url=None):
                     
             attributes['_designator'] = designator
             
+            # Build keywords from breadcrumbs, manufacturer, package, description
+            keywords = set()
+            if match:
+                try:
+                    for b in breadcrumbs:
+                        name = b.get('name', '').strip()
+                        if name and name.lower() not in ('home', 'lcsc', ''):
+                            keywords.add(name)
+                except Exception:
+                    pass
+            
+            # Add manufacturer, package, and key attributes as keywords
+            for key in ('Manufacturer', 'Package', 'Key Attributes', 'Description'):
+                val = attributes.get(key, '').strip()
+                if val:
+                    keywords.add(val)
+            
+            # Add the part number itself
+            keywords.add(part_number)
+            
+            attributes['_keywords'] = ' '.join(sorted(keywords))
+            
             print(f"[+] Scraped attributes successfully: {attributes.keys()}")
             return attributes
     except Exception as e:
@@ -265,6 +287,11 @@ def download_part(part_number, tab_url=None):
     attributes = fetch_lcsc_attributes(part_number, tab_url)
     
     # 2. Invoke JLC2KiCadLib to fetch EasyEDA files (footprints, 3D shapes, symbol)
+    # Ensure all target directories exist before JLC2KiCadLib runs
+    os.makedirs(os.path.join(LIBRARY_DIR, "Footprints"), exist_ok=True)
+    os.makedirs(os.path.join(LIBRARY_DIR, "3D_Models"), exist_ok=True)
+    os.makedirs(os.path.join(LIBRARY_DIR, "Symbols"), exist_ok=True)
+    
     old_argv = sys.argv
     sys.argv = [
         "JLC2KiCadLib",
@@ -272,7 +299,7 @@ def download_part(part_number, tab_url=None):
         "-dir", LIBRARY_DIR,
         "-symbol_lib", SYMBOL_LIB,
         "-footprint_lib", FOOTPRINT_LIB,
-        "-model_dir", f"../{FOOTPRINT_LIB}.3dshapes",
+        "-model_dir", f"../3D_Models/{FOOTPRINT_LIB}.3dshapes",
         "--skip_existing"
     ]
     
@@ -290,10 +317,16 @@ def download_part(part_number, tab_url=None):
                 
         print(f"[+] JLC2KiCadLib execution complete.")
         
-        # Post-process: Automatically migrate footprints to the .pretty folder since KiCad requires it
+        # Post-process: Automatically migrate footprints to the .pretty folder inside the user's Footprints directory
         import shutil
+        import re
         src_fp_dir = os.path.join(LIBRARY_DIR, FOOTPRINT_LIB)
-        dst_fp_dir = os.path.join(LIBRARY_DIR, f"{FOOTPRINT_LIB}.pretty")
+        dst_fp_dir = os.path.join(LIBRARY_DIR, "Footprints", f"{FOOTPRINT_LIB}.pretty")
+        
+        # We need the absolute path to the 3dshapes folder for KiCad 3D models to work reliably
+        # regardless of what project directory the user is currently in.
+        abs_3d_dir = os.path.join(LIBRARY_DIR, "3D_Models", f"{FOOTPRINT_LIB}.3dshapes").replace('\\', '/')
+        
         if os.path.exists(src_fp_dir):
             if not os.path.exists(dst_fp_dir):
                 os.makedirs(dst_fp_dir)
@@ -301,7 +334,29 @@ def download_part(part_number, tab_url=None):
                 s = os.path.join(src_fp_dir, item)
                 d = os.path.join(dst_fp_dir, item)
                 if s.endswith('.kicad_mod'):
-                    shutil.move(s, d)
+                    # Read the footprint to fix 3D model paths
+                    with open(s, 'r', encoding='utf-8') as f:
+                        fp_content = f.read()
+                        
+                    # Fix 1: JLC2KiCadLib relative paths (e.g. "../3D_Models/LCSC_Imports.3dshapes/XYZ.step")
+                    # Change to absolute paths so they work in ANY project
+                    fp_content = re.sub(
+                        rf'\(model\s+["\']?\.\./3D_Models/{FOOTPRINT_LIB}\.3dshapes/',
+                        f'(model "{abs_3d_dir}/',
+                        fp_content
+                    )
+                    
+                    # Fix 2: Legacy EasyEDA KiCad footprint references (e.g. "${KISYS3DMOD}/...")
+                    # Update to KiCad 10's environment variable
+                    fp_content = fp_content.replace('${KISYS3DMOD}', '${KICAD10_3DMODEL_DIR}')
+                    
+                    # Write it directly to the destination
+                    with open(d, 'w', encoding='utf-8') as f:
+                        f.write(fp_content)
+                    
+                    # Remove the old source file
+                    os.remove(s)
+                    
             # Try to clean up the empty source directory
             try:
                 os.rmdir(src_fp_dir)
@@ -324,8 +379,9 @@ def download_part(part_number, tab_url=None):
         if attributes:
             symbol_block = update_symbol_properties(symbol_block, attributes)
             
-        # 5. Merge the updated symbol into the active root library file C:\Users\LRNA\Desktop\Kicad-Design-Library\EasyEDA.kicad_sym
-        active_root_lib = os.path.join(LIBRARY_DIR, f"{SYMBOL_LIB}.kicad_sym")
+        # 5. Merge the updated symbol into the active root library file
+        os.makedirs(os.path.join(LIBRARY_DIR, "Symbols"), exist_ok=True)
+        active_root_lib = os.path.join(LIBRARY_DIR, "Symbols", f"{SYMBOL_LIB}.kicad_sym")
         merge_symbol_into_library(active_root_lib, lib_symbol_name, symbol_block)
         
         return True, lib_symbol_name, symbol_block, attributes

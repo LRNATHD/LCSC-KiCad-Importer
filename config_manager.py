@@ -16,9 +16,9 @@ CONFIG_FILE = os.path.join(get_base_dir(), 'config.ini')
 DEFAULT_CONFIG = {
     'Settings': {
         'HOTKEY': 'ctrl+shift+d',
-        'LIBRARY_DIR': r'C:\Users\LRNA\Desktop\Kicad-Design-Library',
-        'SYMBOL_LIB': 'EasyEDA',
-        'FOOTPRINT_LIB': 'EasyEDA'
+        'LIBRARY_DIR': r'G:\My Drive\computers\Kicad_Bits',
+        'SYMBOL_LIB': 'LCSC_Imports',
+        'FOOTPRINT_LIB': 'LCSC_Imports'
     }
 }
 
