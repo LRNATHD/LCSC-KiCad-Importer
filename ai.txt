@@ -1,0 +1,24 @@
+RULES
+1. Read ai.txt files before modifying files in a folder.
+2. Make and update ai.txt files as you work in a folder.
+====
+KEY INFO
+| Item | Description |
+|---|---|
+| Project | LCSC-KiCad-Importer V3 |
+| Core Script | main.py, part_downloader.py |
+| Dependencies | JLC2KiCadLib, uiautomation |
+| Config | config.ini |
+====
+COMMANDS
+# Run the daemon
+python main.py
+====
+TEMPLATES
+====
+TROUBLESHOOTING
+====
+CHECKLIST
+[ ] Implement batch processing for Consolidated_Parts.csv
+[ ] Filter out standard passives (Resistors, Capacitors, Inductors)
+[ ] Download symbols and footprints for remaining parts

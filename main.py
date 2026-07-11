@@ -179,7 +179,10 @@ try:
                     self.wait_window(self)
                 
                 def _on_ok(self):
-                    self.result_name = self.name_entry.get().strip()
+                    raw_name = self.name_entry.get().strip()
+                    # Sanitize symbol name: KiCad S-expressions break on quotes, parentheses, etc.
+                    # Replace anything that isn't alphanumeric, space, dot, dash, or underscore with an underscore.
+                    self.result_name = re.sub(r'[^a-zA-Z0-9 .\-_]', '_', raw_name) if raw_name else ""
                     self.result_keywords = self.kw_entry.get().strip()
                     self.cancelled = False
                     self.destroy()
@@ -282,6 +285,8 @@ try:
                     # Replace the root symbol and any derived symbols (extends)
                     sym_content = re.sub(rf'\(symbol "{re.escape(symbol_name)}"', f'(symbol "{custom_name}"', sym_content)
                     sym_content = re.sub(rf'\(extends "{re.escape(symbol_name)}"', f'(extends "{custom_name}"', sym_content)
+                    # Replace the prefix in any child units
+                    sym_content = re.sub(rf'\(symbol "{re.escape(symbol_name)}_(\d+)_(\d+)"', f'(symbol "{custom_name}_\\1_\\2"', sym_content)
                     
                     with open(sym_path, "w", encoding="utf-8") as f:
                         f.write(sym_content)
@@ -289,99 +294,15 @@ try:
                 # Update the clipboard payload variables
                 symbol_block = re.sub(rf'\(symbol "{re.escape(symbol_name)}"', f'(symbol "{custom_name}"', symbol_block)
                 symbol_block = re.sub(rf'\(extends "{re.escape(symbol_name)}"', f'(extends "{custom_name}"', symbol_block)
+                symbol_block = re.sub(rf'\(symbol "{re.escape(symbol_name)}_(\d+)_(\d+)"', f'(symbol "{custom_name}_\\1_\\2"', symbol_block)
                 symbol_name = custom_name
                 print(f"[+] Symbol renamed to: {symbol_name}")
 
-            # 4. Build KiCad 10 clipboard payload
-            clean_name = symbol_name.replace('{slash}', '/')
-
-            # Prefix the root symbol definition with the library nickname
-            modified_symbol_block = re.sub(
-                r'^\(symbol\s+"([^"]+)"',
-                lambda m: f'(symbol "{SYMBOL_LIB}:{m.group(1)}"',
-                symbol_block,
-                count=1,
-                flags=re.MULTILINE
-            )
-
-            # Extract designator from attributes dict (set by part_downloader breadcrumb logic)
-            reference_prefix = "U"
-            if isinstance(attributes, dict):
-                reference_prefix = attributes.get('_designator', 'U')
-            elif isinstance(attributes, str):
-                ref_match = re.search(r'\(property "Reference"\s+"([^"]+)"', attributes)
-                if ref_match:
-                    prefix_match = re.match(r'([A-Za-z]+)', ref_match.group(1))
-                    if prefix_match:
-                        reference_prefix = prefix_match.group(1).upper()
-
-            # Override the Reference property in the symbol block
-            modified_symbol_block = re.sub(
-                r'\(property\s+"Reference"\s+"[^"]+"',
-                f'(property "Reference" "{reference_prefix}"',
-                modified_symbol_block
-            )
-
-            # Extract Reference position from the lib symbol
-            ref_at_match = re.search(
-                r'\(property\s+"Reference".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)',
-                modified_symbol_block, re.DOTALL
-            )
-            ref_at = f"(at {ref_at_match.group(1)} {ref_at_match.group(2)} {ref_at_match.group(3)})" if ref_at_match else "(at 0 5.08 0)"
-
-            # Extract Footprint property
-            fp_match = re.search(
-                r'\(property\s+"Footprint"\s+"([^"]+)".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)',
-                modified_symbol_block, re.DOTALL
-            )
-            fp_prop = ""
-            if fp_match:
-                fp_prop = f"""  (property "Footprint" "{fp_match.group(1)}"
-    (at {fp_match.group(2)} {fp_match.group(3)} {fp_match.group(4)})
-    (effects (font (size 1.27 1.27) italic) hide)
-  )"""
-
-            # Extract Value property
-            val_match = re.search(
-                r'\(property\s+"Value"\s+"([^"]+)".*?\(at\s+([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)',
-                modified_symbol_block, re.DOTALL
-            )
-            val_prop = ""
-            if val_match:
-                val_prop = f"""  (property "Value" "{val_match.group(1)}"
-    (at {val_match.group(2)} {val_match.group(3)} {val_match.group(4)})
-    (effects (font (size 1.27 1.27)))
-  )"""
-
-            clipboard_text = f"""(lib_symbols
-  {modified_symbol_block}
-)
-(symbol
-  (lib_id "{SYMBOL_LIB}:{clean_name}")
-  (at 0 0 0)
-  (unit 1)
-  (body_style 1)
-  (exclude_from_sim no)
-  (in_bom yes)
-  (on_board yes)
-  (in_pos_files yes)
-  (dnp no)
-  (fields_autoplaced yes)
-  (uuid "{str(uuid.uuid4())}")
-  (property "Reference" "{reference_prefix}"
-    {ref_at}
-    (effects (font (size 1.27 1.27)))
-  )
-{val_prop}
-{fp_prop}
-)"""
-            pyperclip.copy(clipboard_text)
-
             print("\n" + "*" * 60)
-            print(f"[+] SUCCESS: '{clean_name}' ready to paste!")
-            print(f"    Press Ctrl+V in KiCad Schematic Editor.")
+            print(f"[+] SUCCESS: '{symbol_name}' is now in the library!")
+            print(f"    You can find it in KiCad under LCSC_Imports:{symbol_name}")
             print("*" * 60 + "\n")
-            show_notification(f"Downloaded {clean_name}!\nReady to paste (Ctrl+V).", "Success")
+            show_notification(f"Downloaded {symbol_name}!\nAdded to KiCad Library.", "Success")
 
         except Exception as e:
             show_notification(f"Error: {e}", "Error")

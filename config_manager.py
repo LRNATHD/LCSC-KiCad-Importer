@@ -16,7 +16,7 @@ CONFIG_FILE = os.path.join(get_base_dir(), 'config.ini')
 DEFAULT_CONFIG = {
     'Settings': {
         'HOTKEY': 'ctrl+shift+d',
-        'LIBRARY_DIR': r'G:\My Drive\computers\Kicad_Bits',
+        'LIBRARY_DIR': r'C:\Users\Noahs\My Drive\computers\Kicad_Bits',
         'SYMBOL_LIB': 'LCSC_Imports',
         'FOOTPRINT_LIB': 'LCSC_Imports'
     }

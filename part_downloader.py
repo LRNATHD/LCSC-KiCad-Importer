@@ -341,8 +341,8 @@ def download_part(part_number, tab_url=None):
                     # Fix 1: JLC2KiCadLib relative paths (e.g. "../3D_Models/LCSC_Imports.3dshapes/XYZ.step")
                     # Change to absolute paths so they work in ANY project
                     fp_content = re.sub(
-                        rf'\(model\s+["\']?\.\./3D_Models/{FOOTPRINT_LIB}\.3dshapes/',
-                        f'(model "{abs_3d_dir}/',
+                        rf'\(model\s+["\']?\.\./3D_Models/{FOOTPRINT_LIB}\.3dshapes/([^"\'\s\)]+)["\']?',
+                        rf'(model "{abs_3d_dir}/\1"',
                         fp_content
                     )
                     
@@ -373,6 +373,14 @@ def download_part(part_number, tab_url=None):
             print(f"[-] Could not find symbol for {part_number} inside {jlc_lib_path}")
             return False, None, None, None
             
+        # Fix JLC2KiCadLib bug where top-level symbol name doesn't match unit prefixes
+        unit_m = re.search(r'\n\s*\(symbol\s+"([^"]+)_[0-9]+_[0-9]+"', symbol_block)
+        if unit_m:
+            unit_prefix = unit_m.group(1)
+            if unit_prefix != lib_symbol_name:
+                symbol_block = symbol_block.replace(f'(symbol "{lib_symbol_name}"', f'(symbol "{unit_prefix}"', 1)
+                lib_symbol_name = unit_prefix
+                
         print(f"[+] Successfully located symbol definition block: '{lib_symbol_name}'")
         
         # 4. Inject LCSC attributes into the symbol block properties
